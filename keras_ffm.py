@@ -13,18 +13,18 @@ def _reshape_embedding(input, embedding, name):
 
 EMBEDDING_DIMENSION = 8
 
-fields = [...]  # List of objects having attributes: id, name and nb_features
+features = [...]  # List of objects having attributes: feature_id and field_id
 
-input_fields = {
-    f.id: Input((1,), name=f.name) for f in fields}
+input_features = {
+    f.feature_id: Input((1,)) for f in fields}
 
 embeddings = {}
-for f1 in fields:
-    for f2 in fields:
-        if f2.id < f1.id:
+for f1 in features:
+    for f2 in features:
+        if f1.field_id == f2.field_id:
             continue
 
-        embeddings[(f1.id, f2.id)] = Embedding(
+        embeddings[(f1.feature_id, f2.field_id)] = Embedding(
             f1.nb_features,
             EMBEDDING_DIMENSION,
             input_length=1
@@ -34,23 +34,18 @@ for f1 in fields:
 products = []
 for f1 in fields:
     for f2 in fields:
-        if f2.id < f1.id:
+        if f2.field_id == f1.field_id:
             continue
 
-    input_field_1 = _reshape_embedding(
-        input_fields[f1.id],
-        embeddings[(f1.id, f2.id)],
-    )
+    embedded_input_feature_1 = embeddings[(f1.feature_id, f2.field_id)](input_fields[f1.feature_id])
+    embedded_input_feature_2 = embeddings[(f2.feature_id, f1.field_id)](input_fields[f2.feature_id])
 
-    embedded_input_field_1 = embeddings[(f1.id, f2.id)](input_fields[f1.id])
-    embedded_input_field_2 = embeddings[(f2.id, f1.id)](input_fields[f2.id])
+    embedded_input_feature_1 = \
+        Reshape((embeddings[(f1.feature_id, f2.field_id)].output_dim, 1))(embedded_input_feature_1)
+    embedded_input_feature_2 = \
+        Reshape((embeddings[(f2.feature_id, f1.field_id)].output_dim, 1))(embedded_input_feature_2)
 
-    embedded_input_field_1 = \
-        Reshape((embeddings[(f1.id, f2.id)].output_dim, 1))(embedded_input_field_1)
-    embedded_input_field_2 = \
-        Reshape((embeddings[(f1.id, f2.id)].output_dim, 1))(embedded_input_field_1)
-
-    product = multiply([embedded_input_field_1, embedded_input_field_2], axes=1, normalize=False)
+    product = multiply([embedded_input_feature_1, embedded_input_feature_2], axes=1, normalize=False)
     products.append(Reshape((1,))(product))
 
 
